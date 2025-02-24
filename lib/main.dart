@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Android Chat App',
+      title: 'ChatGPT API (o3-mini)',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -115,7 +115,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Android Chat App'),
+        title: Text('ChatGPT API (o3-mini)'),
       ),
       body: SafeArea(
         child: Column(
@@ -145,6 +145,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         hintText: 'Enter your message...',
                         border: OutlineInputBorder(),
                       ),
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (value) {
+                        _sendMessage(value);
+                      },
                     ),
                   ),
                   SizedBox(width: 8),
