@@ -33,9 +33,22 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   // Stores chat messages with keys 'role' and 'content'
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   // Sends the user message to OpenAI and adds the assistant's reply.
   Future<void> _sendMessage(String message) async {
@@ -45,6 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _isLoading = true;
     });
     _controller.clear();
+    _scrollToBottom();
 
     try {
       // Convert conversation history to a list of OpenAIChatCompletionChoiceMessageModel objects.
@@ -66,11 +80,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final assistantMessage = response.choices.first.message;
       String responseText;
       if (assistantMessage.content is List<OpenAIChatCompletionChoiceMessageContentItemModel>) {
-        // No need for an extra cast since the type is already known.
         final contentItems = assistantMessage.content as List<OpenAIChatCompletionChoiceMessageContentItemModel>;
         responseText = contentItems.isNotEmpty ? (contentItems.first.text ?? "No response from assistant.") : "No response from assistant.";
       } else if (assistantMessage.content is String) {
-        // Use null-aware operator to guarantee a non-null String.
         responseText = (assistantMessage.content as String?) ?? "No response from assistant.";
       } else {
         responseText = "No response from assistant.";
@@ -78,10 +90,12 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _messages.add({'role': 'assistant', 'content': responseText});
       });
+      _scrollToBottom();
     } catch (error) {
       setState(() {
         _messages.add({'role': 'assistant', 'content': 'Error: $error'});
       });
+      _scrollToBottom();
     }
     setState(() {
       _isLoading = false;
@@ -112,6 +126,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -122,6 +143,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Expanded(
               child: ListView.builder(
+                controller: _scrollController,
                 padding: EdgeInsets.all(10),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
