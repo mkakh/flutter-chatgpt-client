@@ -1,0 +1,27 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Build outputs
+build
+android
+ios
+macos
+linux
+windows
+web
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+
+# Miscellaneous
+*.log
+.DS_Store
+
+# API
+.env
+env.g.dart
