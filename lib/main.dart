@@ -1,24 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:dart_openai/dart_openai.dart';
-import 'env/env.dart';
-import 'dart:io';
 import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
 
-// IMPORTANT:
-// 1. Ensure your pubspec.yaml includes the dependency:
-//    dart_openai: ^5.0.0
-//    Also add path_provider (e.g., path_provider: ^2.0.11)
-// 2. Run "flutter pub get" to install the dependencies.
-// 3. Replace 'YOUR_API_KEY' below with your actual OpenAI API key.
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:dart_openai/dart_openai.dart';
+
+import 'env/env.dart';
 
 void main() {
   OpenAI.apiKey = Env.apiKey;
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -26,36 +22,71 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: ChatScreen(),
+      home: const ChatScreen(),
     );
   }
 }
 
 class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key});
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  // Stores chat messages with keys 'role' and 'content'
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Scrolls the chat list to the bottom.
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  // Sends the user message to OpenAI and adds the assistant's reply.
+  // Converts the internal message list into a format required by OpenAI.
+  List<OpenAIChatCompletionChoiceMessageModel> _buildChatMessages() =>
+      _messages.map((msg) {
+        return OpenAIChatCompletionChoiceMessageModel(
+          content: [
+            OpenAIChatCompletionChoiceMessageContentItemModel.text(
+                msg['content'] ?? '')
+          ],
+          role: msg['role'] == 'user'
+              ? OpenAIChatMessageRole.user
+              : OpenAIChatMessageRole.assistant,
+        );
+      }).toList();
+
+  // Parses the assistant response content into plain text.
+  String _parseAssistantResponse(dynamic content) {
+    if (content is List<OpenAIChatCompletionChoiceMessageContentItemModel>) {
+      return content.isNotEmpty
+          ? (content.first.text ?? "No response from assistant.")
+          : "No response from assistant.";
+    } else if (content is String) {
+      return content;
+    } else {
+      return "No response from assistant.";
+    }
+  }
+
+  // Sends a user message to the OpenAI API and updates the chat with the assistant response.
   Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
     setState(() {
@@ -66,70 +97,28 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      // Convert conversation history to a list of OpenAIChatCompletionChoiceMessageModel objects.
-      List<OpenAIChatCompletionChoiceMessageModel> chatMessages = _messages.map((msg) {
-        return OpenAIChatCompletionChoiceMessageModel(
-          content: [
-            OpenAIChatCompletionChoiceMessageContentItemModel.text(msg['content']!)
-          ],
-          role: msg['role'] == 'user'
-              ? OpenAIChatMessageRole.user
-              : OpenAIChatMessageRole.assistant,
-        );
-      }).toList();
+      final chatMessages = _buildChatMessages();
       final response = await OpenAI.instance.chat.create(
         model: "o3-mini",
         messages: chatMessages,
       );
-
       final assistantMessage = response.choices.first.message;
-      String responseText;
-      if (assistantMessage.content is List<OpenAIChatCompletionChoiceMessageContentItemModel>) {
-        final contentItems = assistantMessage.content as List<OpenAIChatCompletionChoiceMessageContentItemModel>;
-        responseText = contentItems.isNotEmpty ? (contentItems.first.text ?? "No response from assistant.") : "No response from assistant.";
-      } else if (assistantMessage.content is String) {
-        responseText = (assistantMessage.content as String?) ?? "No response from assistant.";
-      } else {
-        responseText = "No response from assistant.";
-      }
+      final responseText = _parseAssistantResponse(assistantMessage.content);
       setState(() {
         _messages.add({'role': 'assistant', 'content': responseText});
+        _isLoading = false;
       });
-      _scrollToBottom();
     } catch (error) {
       setState(() {
         _messages.add({'role': 'assistant', 'content': 'Error: $error'});
+        _isLoading = false;
       });
+    } finally {
       _scrollToBottom();
     }
-    setState(() {
-      _isLoading = false;
-    });
   }
 
-  // Builds a widget for an individual chat message.
-  Widget _buildMessage(Map<String, dynamic> msg) {
-    bool isUser = msg['role'] == 'user';
-    return Container(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isUser ? Colors.blueAccent : Colors.grey[300],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: EdgeInsets.all(14),
-        child: Text(
-          msg['content'] ?? '',
-          style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
-  }
-
+  // Retrieves the file for storing chat history.
   Future<File> _getLocalFile() async {
     Directory directory;
     if (kIsWeb) {
@@ -140,21 +129,19 @@ class _ChatScreenState extends State<ChatScreen> {
     return File('${directory.path}/chat_history.json');
   }
 
+  // Saves the current chat history to a local file.
   Future<void> _saveHistory() async {
     try {
       final file = await _getLocalFile();
       final jsonStr = json.encode(_messages);
       await file.writeAsString(jsonStr);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Chat history saved successfully"))
-      );
+      _showSnackBar("Chat history saved successfully");
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save chat history: $error"))
-      );
+      _showSnackBar("Failed to save chat history: $error");
     }
   }
 
+  // Loads chat history from a local file.
   Future<void> _loadHistory() async {
     try {
       final file = await _getLocalFile();
@@ -162,99 +149,130 @@ class _ChatScreenState extends State<ChatScreen> {
         final jsonStr = await file.readAsString();
         List<dynamic> loaded = json.decode(jsonStr);
         setState(() {
-          _messages.clear();
-          _messages.addAll(loaded.map((m) => m as Map<String, dynamic>));
+          _messages
+            ..clear()
+            ..addAll(loaded.cast<Map<String, dynamic>>());
         });
-        _scrollToBottom();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Chat history loaded successfully"))
-        );
+        _showSnackBar("Chat history loaded successfully");
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No saved chat history found"))
-        );
+        _showSnackBar("No saved chat history found");
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to load chat history: $error"))
-      );
+      _showSnackBar("Failed to load chat history: $error");
+    } finally {
+      _scrollToBottom();
     }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  // Displays a SnackBar with the provided message.
+  void _showSnackBar(String message) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message))
+      );
+
+  Widget _buildChatList() {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(10),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        return ChatBubble(message: _messages[index]);
+      },
+    );
+  }
+
+  Widget _buildChatInput() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                hintText: 'Enter your message...',
+                border: OutlineInputBorder(),
+              ),
+              textInputAction: TextInputAction.send,
+              onSubmitted: _sendMessage,
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => _sendMessage(_controller.text),
+            child: const Icon(Icons.send),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveLoadButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton(
+            onPressed: _saveHistory,
+            child: const Text("Save"),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: _loadHistory,
+            child: const Text("Load"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('ChatGPT API (o3-mini)'),
+        title: const Text('ChatGPT API (o3-mini)'),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: EdgeInsets.all(10),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  return _buildMessage(_messages[index]);
-                },
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: _saveHistory,
-                    child: Text("Save"),
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: _loadHistory,
-                    child: Text("Load"),
-                  ),
-                ],
-              ),
-            ),
+            Expanded(child: _buildChatList()),
+            _buildSaveLoadButtons(),
             if (_isLoading)
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(8),
                 child: CircularProgressIndicator(),
               ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
-                        hintText: 'Enter your message...',
-                        border: OutlineInputBorder(),
-                      ),
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (value) {
-                        _sendMessage(value);
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => _sendMessage(_controller.text),
-                    child: Icon(Icons.send),
-                  ),
-                ],
-              ),
-            ),
+            _buildChatInput(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class ChatBubble extends StatelessWidget {
+  final Map<String, dynamic> message;
+  const ChatBubble({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isUser = message['role'] == 'user';
+    return Container(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isUser ? Colors.blueAccent : Colors.grey[300],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Text(
+          message['content'] ?? '',
+          style: TextStyle(
+            color: isUser ? Colors.white : Colors.black87,
+            fontSize: 16,
+          ),
         ),
       ),
     );
