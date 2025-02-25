@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:dart_openai/dart_openai.dart';
 
@@ -11,6 +12,14 @@ import 'env/env.dart';
 void main() {
   OpenAI.apiKey = Env.apiKey;
   runApp(const MyApp());
+}
+ 
+class SendIntent extends Intent {
+  const SendIntent();
+}
+ 
+class NewLineIntent extends Intent {
+  const NewLineIntent();
 }
 
 class MyApp extends StatelessWidget {
@@ -36,13 +45,37 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
+  final ScrollController _textFieldScrollController = ScrollController();
+  Key _textFieldKey = UniqueKey();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_scrollTextFieldToBottom);
+  }
+  
+  void _scrollTextFieldToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_textFieldScrollController.hasClients) {
+        _textFieldScrollController.animateTo(
+          _textFieldScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _controller.removeListener(_scrollTextFieldToBottom);
     _controller.dispose();
     _scrollController.dispose();
+    _inputFocusNode.dispose();
+    _textFieldScrollController.dispose();
     super.dispose();
   }
 
@@ -187,14 +220,43 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                hintText: 'Enter your message...',
-                border: OutlineInputBorder(),
+            child: Shortcuts(
+              shortcuts: <LogicalKeySet, Intent>{
+                LogicalKeySet(LogicalKeyboardKey.enter): const SendIntent(),
+                LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.enter): const NewLineIntent(),
+              },
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  SendIntent: CallbackAction<SendIntent>(
+                    onInvoke: (intent) {
+                      _sendMessage(_controller.text);
+                      return KeyEventResult.handled;
+                    },
+                  ),
+                  NewLineIntent: CallbackAction<NewLineIntent>(
+                    onInvoke: (intent) {
+                      final text = _controller.text;
+                      final selection = _controller.selection;
+                      final newText = text.replaceRange(selection.start, selection.end, "\n");
+                      _controller.text = newText;
+                      _controller.selection = TextSelection.collapsed(offset: selection.start + 1);
+                      return KeyEventResult.handled;
+                    },
+                  ),
+                },
+                child: TextField(
+                  key: ValueKey(_messages.length),
+                  controller: _controller,
+                  scrollController: _textFieldScrollController,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your message...',
+                    border: OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.send,
+                  minLines: 1,
+                  maxLines: 5,
+                ),
               ),
-              textInputAction: TextInputAction.send,
-              onSubmitted: _sendMessage,
             ),
           ),
           const SizedBox(width: 8),
@@ -226,7 +288,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -250,6 +311,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
+
 
 class ChatBubble extends StatelessWidget {
   final Map<String, dynamic> message;
