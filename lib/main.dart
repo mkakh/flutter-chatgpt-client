@@ -229,7 +229,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: Shortcuts(
               shortcuts: <LogicalKeySet, Intent>{
-                LogicalKeySet(LogicalKeyboardKey.enter): const SendIntent(),
+                LogicalKeySet(LogicalKeyboardKey.enter) : Platform.isAndroid || Platform.isIOS ? const NewLineIntent() : const SendIntent(), 
                 LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.enter): const NewLineIntent(),
               },
               child: Actions(
@@ -259,7 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     hintText: 'Enter your message...',
                     border: OutlineInputBorder(),
                   ),
-                  textInputAction: TextInputAction.send,
+                  textInputAction: TextInputAction.newline,
                   minLines: 1,
                   maxLines: 5,
                 ),
@@ -323,7 +323,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-
 
 class ChatBubble extends StatelessWidget {
   final Map<String, dynamic> message;
