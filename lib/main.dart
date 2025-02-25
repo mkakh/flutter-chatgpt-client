@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:dart_openai/dart_openai.dart';
 import 'env/env.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
 // IMPORTANT:
 // 1. Ensure your pubspec.yaml includes the dependency:
 //    dart_openai: ^5.0.0
-// 2. Run "flutter pub get" to install the dependency.
+//    Also add path_provider (e.g., path_provider: ^2.0.11)
+// 2. Run "flutter pub get" to install the dependencies.
 // 3. Replace 'YOUR_API_KEY' below with your actual OpenAI API key.
 
 void main() {
@@ -125,6 +130,57 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<File> _getLocalFile() async {
+    Directory directory;
+    if (kIsWeb) {
+      directory = await getTemporaryDirectory();
+    } else {
+      directory = await getApplicationDocumentsDirectory();
+    }
+    return File('${directory.path}/chat_history.json');
+  }
+
+  Future<void> _saveHistory() async {
+    try {
+      final file = await _getLocalFile();
+      final jsonStr = json.encode(_messages);
+      await file.writeAsString(jsonStr);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Chat history saved successfully"))
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to save chat history: $error"))
+      );
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final file = await _getLocalFile();
+      if (await file.exists()) {
+        final jsonStr = await file.readAsString();
+        List<dynamic> loaded = json.decode(jsonStr);
+        setState(() {
+          _messages.clear();
+          _messages.addAll(loaded.map((m) => m as Map<String, dynamic>));
+        });
+        _scrollToBottom();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Chat history loaded successfully"))
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No saved chat history found"))
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to load chat history: $error"))
+      );
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -149,6 +205,23 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemBuilder: (context, index) {
                   return _buildMessage(_messages[index]);
                 },
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: _saveHistory,
+                    child: Text("Save"),
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _loadHistory,
+                    child: Text("Load"),
+                  ),
+                ],
               ),
             ),
             if (_isLoading)
