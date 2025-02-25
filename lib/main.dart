@@ -229,7 +229,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: Shortcuts(
               shortcuts: <LogicalKeySet, Intent>{
-                LogicalKeySet(LogicalKeyboardKey.enter) : Platform.isAndroid || Platform.isIOS ? const NewLineIntent() : const SendIntent(), 
+                LogicalKeySet(LogicalKeyboardKey.enter): Platform.isAndroid || Platform.isIOS ? const NewLineIntent() : const SendIntent(), 
                 LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.enter): const NewLineIntent(),
               },
               child: Actions(
