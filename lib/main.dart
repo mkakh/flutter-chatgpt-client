@@ -47,7 +47,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
   final ScrollController _textFieldScrollController = ScrollController();
-  Key _textFieldKey = UniqueKey();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
   
