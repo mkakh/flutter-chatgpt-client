@@ -197,6 +197,14 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // Clears the current chat history.
+  void _clearHistory() {
+    setState(() {
+      _messages.clear();
+    });
+    _showSnackBar("Chat history cleared");
+  }
+
   // Displays a SnackBar with the provided message.
   void _showSnackBar(String message) =>
       ScaffoldMessenger.of(context).showSnackBar(
@@ -283,6 +291,11 @@ class _ChatScreenState extends State<ChatScreen> {
           ElevatedButton(
             onPressed: _loadHistory,
             child: const Text("Load"),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: _clearHistory,
+            child: const Text("Clear"),
           ),
         ],
       ),
