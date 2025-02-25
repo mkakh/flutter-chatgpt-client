@@ -1,6 +1,6 @@
 # Flutter ChatGPT Client
 
-A Flutter project that serves as a client for the ChatGPT API.
+Simple Flutter app to chat with ChatGPT API.
 
 ## How to Build
 To build this project, create `.env` file in the project root and add your API key as folows:
