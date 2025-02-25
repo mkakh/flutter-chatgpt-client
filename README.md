@@ -1,3 +1,3 @@
-# flutter_chatgpt_app
+# Flutter ChatGPT Client
 
-A new Flutter project.
+A Flutter project that serves as a client for the ChatGPT API.

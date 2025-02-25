@@ -1,5 +1,5 @@
-name: flutter_chatgpt_app
-description: A new Flutter project.
+name: flutter_chatgpt_client
+description: A Flutter Client to use ChatGPT o3-mini.
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
