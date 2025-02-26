@@ -13,11 +13,11 @@ void main() {
   OpenAI.apiKey = Env.apiKey;
   runApp(const MyApp());
 }
- 
+
 class SendIntent extends Intent {
   const SendIntent();
 }
- 
+
 class NewLineIntent extends Intent {
   const NewLineIntent();
 }
@@ -49,13 +49,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _textFieldScrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
-  
+
   @override
   void initState() {
     super.initState();
     _controller.addListener(_scrollTextFieldToBottom);
   }
-  
+
   void _scrollTextFieldToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_textFieldScrollController.hasClients) {
@@ -205,10 +205,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Displays a SnackBar with the provided message.
-  void _showSnackBar(String message) =>
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message))
-      );
+  void _showSnackBar(String message) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(message)));
 
   Widget _buildChatList() {
     return ListView.builder(
@@ -229,8 +227,13 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: Shortcuts(
               shortcuts: <LogicalKeySet, Intent>{
-                LogicalKeySet(LogicalKeyboardKey.enter): Platform.isAndroid || Platform.isIOS ? const NewLineIntent() : const SendIntent(), 
-                LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.enter): const NewLineIntent(),
+                LogicalKeySet(LogicalKeyboardKey.enter):
+                    Platform.isAndroid || Platform.isIOS
+                        ? const NewLineIntent()
+                        : const SendIntent(),
+                LogicalKeySet(
+                        LogicalKeyboardKey.shift, LogicalKeyboardKey.enter):
+                    const NewLineIntent(),
               },
               child: Actions(
                 actions: <Type, Action<Intent>>{
@@ -244,9 +247,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     onInvoke: (intent) {
                       final text = _controller.text;
                       final selection = _controller.selection;
-                      final newText = text.replaceRange(selection.start, selection.end, "\n");
+                      final newText = text.replaceRange(
+                          selection.start, selection.end, "\n");
                       _controller.text = newText;
-                      _controller.selection = TextSelection.collapsed(offset: selection.start + 1);
+                      _controller.selection =
+                          TextSelection.collapsed(offset: selection.start + 1);
                       return KeyEventResult.handled;
                     },
                   ),
@@ -300,6 +305,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -340,7 +346,7 @@ class ChatBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.all(14),
-        child: Text(
+        child: SelectableText(
           message['content'] ?? '',
           style: TextStyle(
             color: isUser ? Colors.white : Colors.black87,
