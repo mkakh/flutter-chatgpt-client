@@ -239,6 +239,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 actions: <Type, Action<Intent>>{
                   SendIntent: CallbackAction<SendIntent>(
                     onInvoke: (intent) {
+                      // For macOS, we need to manually end the composition
+                      if (Platform.isMacOS &&
+                          !_controller.value.composing.isCollapsed) {
+                        _controller.value = _controller.value.copyWith(
+                            composing: TextRange.empty,
+                            selection: TextSelection.collapsed(
+                                offset: _controller.value.text.length));
+                        return KeyEventResult.handled;
+                      }
                       _sendMessage(_controller.text);
                       return KeyEventResult.handled;
                     },
