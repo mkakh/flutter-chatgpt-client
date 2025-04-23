@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ChatGPT API (o3-mini)',
+      title: 'ChatGPT API (o4-mini)',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -131,7 +131,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final chatMessages = _buildChatMessages();
       final response = await OpenAI.instance.chat.create(
-        model: "o3-mini",
+        model: "o4-mini",
         messages: chatMessages,
       );
       final assistantMessage = response.choices.first.message;
@@ -319,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ChatGPT API (o3-mini)'),
+        title: const Text('ChatGPT API (o4-mini)'),
       ),
       body: SafeArea(
         child: Column(
